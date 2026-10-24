@@ -8,9 +8,9 @@ Scalable Services (SEZG583), Assignment 1. A microservices application for booki
 
 | Service | Folder | Port | Database | Owner | Responsibility |
 |---|---|---|---|---|---|
-| Event Catalog | `services/event-catalog` | 8081 | `catalog_db` | Shreya | Published events and ticket types |
-| Inventory | `services/inventory` | 8082 | `inventory_db` | Shreya | Ticket capacity, atomic reservation and release |
-| Booking | `services/booking` | 8083 | `booking_db` | Gairik | Booking state, saga orchestration, idempotency |
+| Event Catalog | [`services/event-catalog`](services/event-catalog/README.md) | 8081 | `catalog_db` | Shreya | Published events and ticket types |
+| Inventory | [`services/inventory`](services/inventory/README.md) | 8082 | `inventory_db` | Shreya | Ticket capacity, atomic reservation and release |
+| Booking | [`services/booking`](services/booking/README.md) | 8083 | `booking_db` | Gairik | Booking state, saga orchestration, idempotency |
 | Payment (mock) | [`services/payment-mock`](services/payment-mock/README.md) | 8084 | `payment_db` | Mudit | Simulated charges, failure injection, repeat-safe payments |
 
 Main transaction: **Booking** validates the event with **Catalog**, reserves tickets in **Inventory**, charges through **Payment**, then confirms the booking. If the payment fails, Booking releases the reservation instead.
@@ -27,10 +27,16 @@ Main transaction: **Booking** validates the event with **Catalog**, reserves tic
 # 1. Start PostgreSQL. Creates four databases, each with its own user.
 docker compose up -d
 
-# 2. Start each service in its own terminal (any order; Booking needs the others for the full flow)
-cd services/payment-mock && ./mvnw spring-boot:run      # Windows: mvnw.cmd spring-boot:run
+# 2. Start each service in its own terminal (Booking connects to the other three):
+cd services/event-catalog && ./mvnw spring-boot:run     # Port 8081
+cd services/inventory     && ./mvnw spring-boot:run     # Port 8082
+cd services/payment-mock  && ./mvnw spring-boot:run     # Port 8084
+cd services/booking       && ./mvnw spring-boot:run     # Port 8083
 
-# 3. Check health
+# 3. Check health for each service
+curl http://localhost:8081/health
+curl http://localhost:8082/health
+curl http://localhost:8083/health
 curl http://localhost:8084/health
 ```
 
@@ -84,7 +90,12 @@ Each service README maps its rules to code and tests.
 | What | Command |
 |---|---|
 | Unit tests (per service) | `cd services/<name> && ./mvnw test` |
-| Payment idempotency (Challenge 2, payment side) | `python scripts/test_payment_idempotency.py` |
+| End-to-end booking flow | `python scripts/e2e_booking.py` |
+| Concurrency (Challenge 1) | `python scripts/test_inventory_concurrency.py` |
+| Inventory release / compensation | `python scripts/test_inventory_release.py` |
+| Booking idempotency (Challenge 2, Booking) | `python scripts/test_booking_idempotency.py` |
+| Payment idempotency (Challenge 2, Payment) | `python scripts/test_payment_idempotency.py` |
+| Saga with compensation (Challenge 3C) | `python scripts/test_saga_compensation.py` |
 
 Evidence for each challenge is in [evidence/](evidence/), with a README per folder linking each file to a claim.
 
